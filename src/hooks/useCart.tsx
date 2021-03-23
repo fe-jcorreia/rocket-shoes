@@ -1,4 +1,10 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { toast } from "react-toastify";
 import { api } from "../services/api";
 import { Product, Stock } from "../types";
@@ -31,28 +37,25 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
 
     return [];
   });
-  // const [stock, setStock] = useState<Stock[]>({} as Stock[])
 
-  // useEffect(() => {
-  //   async function loadStock() {
-  //     api.get("stock").then((response) => setStock(response.data));
-  //   }
-
-  //   loadStock();
-  // }, []);
+  useEffect(() => {
+    localStorage.setItem("@RocketShoes:cart", JSON.stringify(cart));
+  }, [cart]);
 
   const addProduct = async (productId: number) => {
     try {
       const productInCart = cart.find((product) => product.id === productId);
-      const productInStock = (await api.get(`stock/${productId}`)).data;
-      if (!productInStock.amount) {
-        throw toast.error("Quantidade solicitada fora de estoque");
-      }
 
       if (!productInCart) {
+        const productInStock: Stock = (await api.get(`stock/${productId}`))
+          .data;
+        if (productInStock.amount < 1) {
+          toast.error("Quantidade solicitada fora de estoque");
+          return;
+        }
+
         const productInApi = (await api.get(`products/${productId}`)).data;
         setCart([...cart, { ...productInApi, amount: 1 }]);
-        localStorage.setItem("@RocketShoes:cart", JSON.stringify(cart));
       } else {
         updateProductAmount({
           productId: productId,
@@ -69,7 +72,7 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
       const newCart = cart.filter((product) => product.id !== productId);
       setCart(newCart);
     } catch {
-      // TODO
+      toast.error("Erro na remoção do produto");
     }
   };
 
@@ -82,14 +85,14 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
         return;
       }
 
-      const productInStock = (await api.get(`stock/${productId}`)).data;
-      if (productInStock.amount) {
+      const productInStock: Stock = (await api.get(`stock/${productId}`)).data;
+      if (amount <= productInStock.amount) {
         const newCart = cart.map((product) =>
           product.id === productId ? { ...product, amount: amount } : product
         );
         setCart(newCart);
       } else {
-        throw toast.error("Quantidade solicitada fora de estoque");
+        toast.error("Quantidade solicitada fora de estoque");
       }
     } catch {
       toast.error("Erro na alteração de quantidade do produto");
